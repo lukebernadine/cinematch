@@ -2,49 +2,192 @@ import streamlit as st
 import anthropic
 import json
 import requests
-
+import random
+ 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CineMatch",
     page_icon="🎬",
     layout="wide",
 )
-
+ 
 # ── TMDB config ───────────────────────────────────────────────────────────────
-# Get a free API key at https://www.themoviedb.org/settings/api
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
-
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+ 
+# ── Session state ─────────────────────────────────────────────────────────────
+for key, default in [("step", 1), ("answers", {}), ("results", None), ("extra_results", None), ("bg_posters", None), ("hero_backdrop", None)]:
+    if key not in st.session_state:
+        st.session_state[key] = default
+ 
+# ── TMDB helpers ──────────────────────────────────────────────────────────────
+def get_tmdb_data(title, year):
+    if not TMDB_API_KEY:
+        return None, None, None, []
+    try:
+        r = requests.get(
+            "https://api.themoviedb.org/3/search/movie",
+            params={"api_key": TMDB_API_KEY, "query": title, "year": year, "language": "en-US"},
+            timeout=5,
+        )
+        results = r.json().get("results", [])
+        if not results:
+            return None, None, None, []
+        movie = results[0]
+        movie_id = movie.get("id")
+        poster_url = f"https://image.tmdb.org/t/p/w342{movie['poster_path']}" if movie.get("poster_path") else None
+        backdrop_url = f"https://image.tmdb.org/t/p/w1280{movie['backdrop_path']}" if movie.get("backdrop_path") else None
+        overview = movie.get("overview", "")
+        cast = []
+        if movie_id:
+            credits = requests.get(
+                f"https://api.themoviedb.org/3/movie/{movie_id}/credits",
+                params={"api_key": TMDB_API_KEY},
+                timeout=5,
+            ).json()
+            cast = [c["name"] for c in credits.get("cast", [])[:6]]
+        return poster_url, backdrop_url, overview, cast
+    except Exception:
+        pass
+    return None, None, None, []
+ 
+ 
+def fetch_background_posters():
+    """Fetch a set of popular movie posters for the background collage."""
+    if not TMDB_API_KEY:
+        return []
+    try:
+        r = requests.get(
+            "https://api.themoviedb.org/3/movie/popular",
+            params={"api_key": TMDB_API_KEY, "language": "en-US", "page": random.randint(1, 5)},
+            timeout=5,
+        )
+        results = r.json().get("results", [])
+        posters = [
+            f"https://image.tmdb.org/t/p/w342{m['poster_path']}"
+            for m in results if m.get("poster_path")
+        ]
+        return posters[:16]
+    except Exception:
+        pass
+    return []
+ 
+ 
+# ── Load background posters once ─────────────────────────────────────────────
+if st.session_state.bg_posters is None:
+    st.session_state.bg_posters = fetch_background_posters()
+ 
+bg_posters = st.session_state.bg_posters
+ 
+# ── Build floating poster background HTML ─────────────────────────────────────
+def floating_posters_html(posters):
+    if not posters:
+        return ""
+    items = ""
+    positions = [
+        (2, 5), (14, 12), (26, 3), (38, 18), (50, 6), (62, 14), (74, 2), (86, 10),
+        (5, 60), (18, 72), (30, 55), (42, 68), (55, 58), (67, 74), (80, 62), (92, 70),
+    ]
+    rotations = [-8, 5, -4, 7, -6, 3, -9, 6, 4, -5, 8, -3, 6, -7, 4, -6]
+    for idx, (left, top) in enumerate(positions):
+        if idx >= len(posters):
+            break
+        rot = rotations[idx % len(rotations)]
+        items += f"""
+        <div style="
+            position:absolute;
+            left:{left}%;
+            top:{top}%;
+            width:90px;
+            transform:rotate({rot}deg);
+            opacity:0.09;
+            border-radius:4px;
+            overflow:hidden;
+            pointer-events:none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        ">
+            <img src="{posters[idx]}" style="width:100%;display:block;" />
+        </div>"""
+    return f"""
+    <div style="
+        position:fixed;
+        top:0; left:0; right:0; bottom:0;
+        overflow:hidden;
+        z-index:0;
+        pointer-events:none;
+        background:#0c0b0f;
+    ">{items}</div>"""
+ 
+ 
+def backdrop_html(url):
+    if not url:
+        return ""
+    return f"""
+    <div style="
+        position:fixed;
+        top:0; left:0; right:0; bottom:0;
+        z-index:0;
+        pointer-events:none;
+        background: linear-gradient(rgba(12,11,15,0.55) 0%, rgba(12,11,15,0.82) 40%, rgba(12,11,15,0.97) 100%),
+                    url('{url}') center center / cover no-repeat;
+    "></div>"""
+ 
+ 
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Outfit:wght@300;400;500&display=swap');
-
+ 
 html, body, [class*="css"] {
     font-family: 'Outfit', sans-serif;
     background-color: #0c0b0f;
     color: #e8e0d5;
 }
-
+ 
 #MainMenu, footer, header { visibility: hidden; }
-
+ 
 section[data-testid="stAppViewContainer"],
 section[data-testid="stAppViewContainer"] > div:first-child,
 .stApp { background-color: #0c0b0f !important; }
-
+ 
 .block-container {
     padding-top: 0 !important;
     padding-left: 2rem !important;
     padding-right: 2rem !important;
     padding-bottom: 3rem;
-    max-width: 760px;
+    max-width: 900px;
     margin: 0 auto;
-    background-color: #0c0b0f;
+    background: transparent !important;
+    position: relative;
+    z-index: 1;
 }
-
+ 
+/* ── Top bar ── */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0 0.8rem;
+    border-bottom: 1px solid #2a2530;
+    margin-bottom: 0;
+}
+.topbar-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: #f0e8dc;
+    letter-spacing: 0.15em;
+}
+.topbar-tag {
+    font-size: 0.65rem;
+    color: #c9a96e;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+ 
 /* ── Hero ── */
 .hero {
     text-align: center;
-    padding: 3rem 0 2rem;
+    padding: 2.5rem 0 2rem;
     border-bottom: 1px solid #2a2530;
     margin-bottom: 2.5rem;
     position: relative;
@@ -80,18 +223,14 @@ section[data-testid="stAppViewContainer"] > div:first-child,
     font-weight: 300;
     letter-spacing: 0.08em;
 }
-
+ 
 /* ── Progress ── */
-.progress-wrap {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 2rem;
-}
+.progress-wrap { display: flex; gap: 5px; margin-bottom: 2rem; }
 .prog-seg { height: 2px; flex: 1; border-radius: 99px; }
 .prog-done   { background: #c9a96e; }
 .prog-active { background: #5a4f3e; }
 .prog-idle   { background: #2a2530; }
-
+ 
 /* ── Step text ── */
 .step-head {
     font-family: 'Cormorant Garamond', serif;
@@ -101,14 +240,9 @@ section[data-testid="stAppViewContainer"] > div:first-child,
     margin-bottom: 0.25rem;
     letter-spacing: 0.02em;
 }
-.step-hint {
-    font-size: 0.8rem;
-    color: #5a5055;
-    margin-bottom: 1.2rem;
-    font-weight: 300;
-}
-
-/* ── Streamlit widget dark overrides ── */
+.step-hint { font-size: 0.8rem; color: #5a5055; margin-bottom: 1.2rem; font-weight: 300; }
+ 
+/* ── Widgets ── */
 div[data-testid="stMultiSelect"] > div,
 div[data-testid="stSelectSlider"] > div,
 div[data-testid="stSelectbox"] > div {
@@ -127,7 +261,6 @@ div[data-testid="stRadio"] label {
     text-transform: uppercase !important;
 }
 div[data-testid="stRadio"] > div { gap: 6px !important; }
-
 div[data-testid="stButton"] > button {
     background: #c9a96e;
     color: #0c0b0f;
@@ -143,8 +276,8 @@ div[data-testid="stButton"] > button {
     transition: opacity 0.2s;
 }
 div[data-testid="stButton"] > button:hover { opacity: 0.78; }
-
-/* ── Movie result card ── */
+ 
+/* ── Movie cards ── */
 .movie-rank {
     font-family: 'Cormorant Garamond', serif;
     font-size: 2.8rem;
@@ -161,77 +294,62 @@ div[data-testid="stButton"] > button:hover { opacity: 0.78; }
     color: #f0e8dc;
     letter-spacing: 0.01em;
 }
-.movie-meta {
-    font-size: 0.75rem;
-    color: #5a5055;
-    margin: 3px 0 8px;
-    font-weight: 300;
-    letter-spacing: 0.05em;
-}
-.movie-why {
-    font-size: 0.83rem;
-    color: #9e8f88;
-    line-height: 1.7;
-    margin-top: 6px;
-    font-weight: 300;
-}
+.movie-meta { font-size: 0.75rem; color: #5a5055; margin: 3px 0 8px; font-weight: 300; letter-spacing: 0.05em; }
+.movie-why { font-size: 0.83rem; color: #9e8f88; line-height: 1.7; margin-top: 6px; font-weight: 300; }
 .badge-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-.badge {
-    font-size: 0.65rem;
-    padding: 2px 9px;
-    border-radius: 2px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
+.badge { font-size: 0.65rem; padding: 2px 9px; border-radius: 2px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
 .badge-genre  { background: #1e1a2e; color: #9b8fd4; border: 1px solid #2e2848; }
 .badge-mood   { background: #1a2420; color: #6bab8c; border: 1px solid #243830; }
 .badge-free   { background: #1a2420; color: #6bab8c; border: 1px solid #243830; }
 .badge-paid   { background: #1e1a1a; color: #b06060; border: 1px solid #382424; }
-
-.divider {
-    border: none;
-    border-top: 1px solid #2a2530;
-    margin: 1.5rem 0;
-}
-
-.poster-img {
-    width: 100%;
-    border-radius: 6px;
-    display: block;
-    border: 1px solid #2a2530;
-}
+.divider { border: none; border-top: 1px solid #2a2530; margin: 1.5rem 0; }
+.poster-img { width: 100%; border-radius: 6px; display: block; border: 1px solid #2a2530; }
 .poster-placeholder {
-    width: 100%;
-    aspect-ratio: 2/3;
-    background: #16131c;
-    border-radius: 6px;
-    border: 1px solid #2a2530;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #3a3540;
-    font-size: 2rem;
-    min-height: 160px;
+    width: 100%; aspect-ratio: 2/3; background: #16131c;
+    border-radius: 6px; border: 1px solid #2a2530;
+    display: flex; align-items: center; justify-content: center;
+    color: #3a3540; font-size: 2rem; min-height: 160px;
 }
 </style>
 """, unsafe_allow_html=True)
-
-# ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-  <div class="hero-eyebrow">Personalised Cinema</div>
-  <div class="hero-title">CineMatch</div>
-  <div class="hero-sub">Answer five questions &nbsp;·&nbsp; Find tonight's film</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Session state ─────────────────────────────────────────────────────────────
-for key, default in [("step", 1), ("answers", {}), ("results", None)]:
-    if key not in st.session_state:
-        st.session_state[key] = default
-
-
+ 
+ 
+# ── Render background ─────────────────────────────────────────────────────────
+is_results = st.session_state.step == 7
+if is_results and st.session_state.hero_backdrop:
+    st.markdown(backdrop_html(st.session_state.hero_backdrop), unsafe_allow_html=True)
+else:
+    st.markdown(floating_posters_html(bg_posters), unsafe_allow_html=True)
+ 
+ 
+# ── Top bar ───────────────────────────────────────────────────────────────────
+col_logo, col_action = st.columns([3, 1])
+with col_logo:
+    st.markdown('<div class="topbar"><span class="topbar-logo">CineMatch</span><span class="topbar-tag">Personalised Cinema</span></div>', unsafe_allow_html=True)
+with col_action:
+    if st.session_state.step > 1:
+        if st.button("↩ Start over", key="topbar_restart"):
+            st.session_state.step = 1
+            st.session_state.answers = {}
+            st.session_state.results = None
+            st.session_state.extra_results = None
+            st.session_state.hero_backdrop = None
+            st.rerun()
+    else:
+        st.markdown('<div style="height:52px;"></div>', unsafe_allow_html=True)
+ 
+ 
+# ── Hero (shown only on question steps) ───────────────────────────────────────
+if st.session_state.step < 7:
+    st.markdown("""
+    <div class="hero">
+      <div class="hero-eyebrow">Personalised Cinema</div>
+      <div class="hero-title">CineMatch</div>
+      <div class="hero-sub">Answer six questions &nbsp;·&nbsp; Find tonight's film</div>
+    </div>
+    """, unsafe_allow_html=True)
+ 
+ 
 # ── Progress bar ──────────────────────────────────────────────────────────────
 def render_progress(current, total=6):
     segs = ""
@@ -239,8 +357,8 @@ def render_progress(current, total=6):
         cls = "prog-done" if i < current else ("prog-active" if i == current else "prog-idle")
         segs += f'<div class="prog-seg {cls}"></div>'
     st.markdown(f'<div class="progress-wrap">{segs}</div>', unsafe_allow_html=True)
-
-
+ 
+ 
 # ── Steps ─────────────────────────────────────────────────────────────────────
 def step1():
     render_progress(1)
@@ -253,8 +371,8 @@ def step1():
         st.session_state.answers["mood"] = moods
         st.session_state.step = 2
         st.rerun()
-
-
+ 
+ 
 def step2():
     render_progress(2)
     st.markdown('<div class="step-head">Any genres you\'re feeling?</div>', unsafe_allow_html=True)
@@ -270,8 +388,8 @@ def step2():
         if st.button("Next →", key="btn2"):
             st.session_state.answers["genre"] = genres
             st.session_state.step = 3; st.rerun()
-
-
+ 
+ 
 def step3():
     render_progress(3)
     st.markdown('<div class="step-head">Time & era preferences</div>', unsafe_allow_html=True)
@@ -289,8 +407,8 @@ def step3():
             st.session_state.answers["runtime"] = runtime
             st.session_state.answers["era"] = era
             st.session_state.step = 4; st.rerun()
-
-
+ 
+ 
 def step4():
     render_progress(4)
     st.markdown('<div class="step-head">Who\'s watching?</div>', unsafe_allow_html=True)
@@ -305,8 +423,8 @@ def step4():
         if st.button("Next →", key="btn4"):
             st.session_state.answers["context"] = context
             st.session_state.step = 5; st.rerun()
-
-
+ 
+ 
 def step5():
     render_progress(5)
     st.markdown('<div class="step-head">How do you like your films to move?</div>', unsafe_allow_html=True)
@@ -327,8 +445,8 @@ def step5():
             st.session_state.answers["pacing"] = pacing
             st.session_state.answers["driver"] = driver
             st.session_state.step = 6; st.rerun()
-
-
+ 
+ 
 def step6():
     render_progress(6)
     st.markdown('<div class="step-head">Any dealbreakers or must-haves?</div>', unsafe_allow_html=True)
@@ -345,50 +463,13 @@ def step6():
         if st.button("🎬  Find my movies", key="btn6"):
             st.session_state.answers["filters"] = filters
             st.session_state.step = 7; st.rerun()
-
-
-# ── TMDB poster fetch ─────────────────────────────────────────────────────────
-def get_tmdb_data(title, year):
-    """Fetch poster URL, overview, and top cast from TMDB."""
-    if not TMDB_API_KEY:
-        return None, None, []
-    try:
-        # Search for the movie
-        r = requests.get(
-            "https://api.themoviedb.org/3/search/movie",
-            params={"api_key": TMDB_API_KEY, "query": title, "year": year, "language": "en-US"},
-            timeout=5,
-        )
-        results = r.json().get("results", [])
-        if not results:
-            return None, None, []
-
-        movie = results[0]
-        movie_id = movie.get("id")
-        poster_url = f"https://image.tmdb.org/t/p/w342{movie['poster_path']}" if movie.get("poster_path") else None
-        overview = movie.get("overview", "")
-
-        # Fetch cast
-        cast = []
-        if movie_id:
-            credits = requests.get(
-                f"https://api.themoviedb.org/3/movie/{movie_id}/credits",
-                params={"api_key": TMDB_API_KEY},
-                timeout=5,
-            ).json()
-            cast = [c["name"] for c in credits.get("cast", [])[:6]]
-
-        return poster_url, overview, cast
-    except Exception:
-        pass
-    return None, None, []
-
-
-# ── Anthropic call ────────────────────────────────────────────────────────────
+ 
+ 
+# ── Anthropic calls ───────────────────────────────────────────────────────────
 def fetch_recommendations(answers):
     a = answers
     prompt = f"""You are a world-class film curator. Based on these viewer preferences, recommend exactly 10 movies ranked from best match (#1) to good match (#10).
-
+ 
 Preferences:
 - Mood: {', '.join(a.get('mood', [])) or 'no preference'}
 - Genres: {', '.join(a.get('genre', [])) or 'any'}
@@ -398,9 +479,9 @@ Preferences:
 - Pacing preference: {a.get('pacing', 'not specified')}
 - What drives the film: {a.get('driver', 'not specified')}
 - Filters/preferences: {', '.join(a.get('filters', [])) or 'none'}
-
+ 
 For each movie include the main US streaming platforms where it is most likely currently available (choose from: Netflix, Hulu, Disney+, Max, Apple TV+, Prime Video, Peacock, Paramount+, Tubi, Pluto TV). Mark free: true for ad-supported/free platforms (Tubi, Pluto TV, Peacock free tier) and free: false for subscription platforms.
-
+ 
 Respond ONLY with a valid JSON array (no markdown, no explanation) of exactly 10 objects in ranked order:
 [
   {{
@@ -416,24 +497,21 @@ Respond ONLY with a valid JSON array (no markdown, no explanation) of exactly 10
     ]
   }}
 ]"""
-
     client = anthropic.Anthropic()
     message = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = message.content[0].text.strip()
-    text = text.replace("```json", "").replace("```", "").strip()
+    text = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(text)
-
-
-# ── Fetch more similar films ──────────────────────────────────────────────────
+ 
+ 
 def fetch_more_recommendations(answers, existing_titles):
     a = answers
     exclude = ", ".join(existing_titles)
-    prompt = f"""You are a world-class film curator. Based on these viewer preferences, recommend 10 MORE movies similar to the ones already suggested but NOT including them.
-
+    prompt = f"""You are a world-class film curator. Recommend 10 MORE movies based on these preferences but NOT including the already-recommended ones.
+ 
 Preferences:
 - Mood: {', '.join(a.get('mood', [])) or 'no preference'}
 - Genres: {', '.join(a.get('genre', [])) or 'any'}
@@ -443,11 +521,11 @@ Preferences:
 - Pacing preference: {a.get('pacing', 'not specified')}
 - What drives the film: {a.get('driver', 'not specified')}
 - Filters/preferences: {', '.join(a.get('filters', [])) or 'none'}
-
-Already recommended (do NOT include these): {exclude}
-
+ 
+Already recommended (do NOT include): {exclude}
+ 
 For each movie include US streaming platforms (Netflix, Hulu, Disney+, Max, Apple TV+, Prime Video, Peacock, Paramount+, Tubi, Pluto TV). Mark free: true for Tubi, Pluto TV, Peacock free tier.
-
+ 
 Respond ONLY with a valid JSON array (no markdown) of exactly 10 objects:
 [
   {{
@@ -457,23 +535,19 @@ Respond ONLY with a valid JSON array (no markdown) of exactly 10 objects:
     "genres": ["Genre1", "Genre2"],
     "why": "One sentence explaining why this is a great follow-on recommendation.",
     "mood_tags": ["tag1", "tag2"],
-    "streaming": [
-      {{"platform": "Netflix", "free": false}}
-    ]
+    "streaming": [{{"platform": "Netflix", "free": false}}]
   }}
 ]"""
-
     client = anthropic.Anthropic()
     message = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = message.content[0].text.strip()
-    text = text.replace("```json", "").replace("```", "").strip()
+    text = message.content[0].text.strip().replace("```json", "").replace("```", "").strip()
     return json.loads(text)
-
-
+ 
+ 
 # ── Results page ──────────────────────────────────────────────────────────────
 def step_results():
     if st.session_state.results is None:
@@ -481,52 +555,46 @@ def step_results():
             try:
                 st.session_state.results = fetch_recommendations(st.session_state.answers)
                 st.session_state.extra_results = None
+                # Fetch backdrop for #1 movie
+                m1 = st.session_state.results[0]
+                _, backdrop, _, _ = get_tmdb_data(m1["title"], m1.get("year", ""))
+                st.session_state.hero_backdrop = backdrop
+                st.rerun()
             except Exception as e:
                 st.error(f"Something went wrong: {e}")
                 if st.button("Try again"):
                     st.session_state.step = 6; st.rerun()
                 return
-
-    if "extra_results" not in st.session_state:
-        st.session_state.extra_results = None
-
+ 
+    all_movies = st.session_state.results + (st.session_state.extra_results or [])
+ 
     st.markdown('<div class="step-head">Your Top 10</div>', unsafe_allow_html=True)
     st.markdown('<div class="step-hint">Ranked by how well they match your preferences</div>', unsafe_allow_html=True)
-
-    if not TMDB_API_KEY:
-        st.info("💡 Add a TMDB API key to `.streamlit/secrets.toml` to show movie poster images. Get one free at themoviedb.org", icon="🎬")
-
-    all_movies = st.session_state.results + (st.session_state.extra_results or [])
-
+ 
     for i, m in enumerate(all_movies, 1):
-        poster_url, overview, cast = get_tmdb_data(m["title"], m.get("year", ""))
-
+        poster_url, _, overview, cast = get_tmdb_data(m["title"], m.get("year", ""))
+ 
         col_poster, col_info = st.columns([1, 3])
-
+ 
         with col_poster:
             if poster_url:
                 st.markdown(f'<img src="{poster_url}" class="poster-img" alt="{m["title"]} poster">', unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="poster-placeholder">🎬</div>', unsafe_allow_html=True)
-
+                st.markdown('<div class="poster-placeholder">🎬</div>', unsafe_allow_html=True)
+ 
         with col_info:
-            genre_badges = "".join(
-                f'<span class="badge badge-genre">{g}</span>' for g in m.get("genres", [])
-            )
-            mood_badges = "".join(
-                f'<span class="badge badge-mood">{t}</span>' for t in m.get("mood_tags", [])
-            )
+            genre_badges = "".join(f'<span class="badge badge-genre">{g}</span>' for g in m.get("genres", []))
+            mood_badges  = "".join(f'<span class="badge badge-mood">{t}</span>'  for t in m.get("mood_tags", []))
             streaming = m.get("streaming", [])
             stream_badges = "".join(
                 f'<span class="badge {"badge-free" if s.get("free") else "badge-paid"}">'
                 f'{s["platform"]} · {"free" if s.get("free") else "sub"}</span>'
                 for s in streaming
             ) if streaming else '<span style="font-size:0.72rem;color:#3a3540;font-style:italic;">No streaming info</span>'
-
+ 
             rank_str = f"0{i}" if i < 10 else str(i)
-
             st.markdown(f"""
-            <div style="padding: 4px 0 8px;">
+            <div style="padding:4px 0 8px;">
               <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;">
                 <span class="movie-rank">{rank_str}</span>
                 <span class="movie-title">{m['title']}</span>
@@ -537,22 +605,21 @@ def step_results():
               <div class="badge-row" style="margin-top:10px;">{stream_badges}</div>
             </div>
             """, unsafe_allow_html=True)
-
-            # ── Premise & cast expander ────────────────────────────────────────
+ 
             with st.expander("Premise & cast"):
                 if overview:
-                    st.markdown(f'<p style="color:#c9a96e;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Premise</p>', unsafe_allow_html=True)
+                    st.markdown('<p style="color:#c9a96e;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Premise</p>', unsafe_allow_html=True)
                     st.markdown(f'<p style="color:#e8e0d5;font-size:0.88rem;line-height:1.7;">{overview}</p>', unsafe_allow_html=True)
                 else:
                     st.markdown('<p style="color:#5a5055;font-size:0.85rem;">No premise available.</p>', unsafe_allow_html=True)
                 if cast:
-                    st.markdown(f'<p style="color:#c9a96e;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px;">Starring</p>', unsafe_allow_html=True)
+                    st.markdown('<p style="color:#c9a96e;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px;">Starring</p>', unsafe_allow_html=True)
                     st.markdown(f'<p style="color:#e8e0d5;font-size:0.88rem;">{" · ".join(cast)}</p>', unsafe_allow_html=True)
                 else:
                     st.markdown('<p style="color:#5a5055;font-size:0.85rem;">Cast info unavailable.</p>', unsafe_allow_html=True)
-
+ 
         st.markdown('<hr class="divider">', unsafe_allow_html=True)
-
+ 
     # ── Show more / Start over ─────────────────────────────────────────────────
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
@@ -575,9 +642,10 @@ def step_results():
             st.session_state.answers = {}
             st.session_state.results = None
             st.session_state.extra_results = None
+            st.session_state.hero_backdrop = None
             st.rerun()
-
-
+ 
+ 
 # ── Router ────────────────────────────────────────────────────────────────────
 step = st.session_state.step
 if   step == 1: step1()
