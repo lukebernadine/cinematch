@@ -325,7 +325,7 @@ else:
 # ── Top bar ───────────────────────────────────────────────────────────────────
 col_logo, col_action = st.columns([3, 1])
 with col_logo:
-    st.markdown('<div class="topbar"><span class="topbar-logo">CineMatch</span><span class="topbar-tag">Personalised Cinema</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="topbar"><span class="topbar-logo">CineMatch</span></div>', unsafe_allow_html=True)
 with col_action:
     if st.session_state.step > 1:
         if st.button("↩ Start over", key="topbar_restart"):
@@ -346,6 +346,39 @@ if st.session_state.step < 7:
       <div class="hero-eyebrow">Personalised Cinema</div>
       <div class="hero-title">CineMatch</div>
       <div class="hero-sub">Answer six questions &nbsp;·&nbsp; Find tonight's film</div>
+    </div>
+    """, unsafe_allow_html=True)
+ 
+# ── Feature highlights (step 1 only) ─────────────────────────────────────────
+if st.session_state.step == 1:
+    st.markdown("""
+    <div style="margin-bottom:2rem;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:#f0e8dc;text-align:center;margin-bottom:0.4rem;letter-spacing:0.02em;">
+        Stop scrolling. Start watching.
+      </div>
+      <div style="font-size:0.85rem;color:#5a5055;text-align:center;font-weight:300;margin-bottom:2.5rem;letter-spacing:0.04em;">
+        Tell us how you feel and we'll find the perfect film — every time.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:2.5rem;">
+        <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
+          <div style="font-size:1.3rem;margin-bottom:0.6rem;">🎯</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">AI-powered picks</div>
+          <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Claude analyses your mood, taste, and energy to rank films made for this exact moment.</div>
+        </div>
+        <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
+          <div style="font-size:1.3rem;margin-bottom:0.6rem;">📺</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Where to watch</div>
+          <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Every recommendation shows which streaming platforms carry it — and whether it's free.</div>
+        </div>
+        <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
+          <div style="font-size:1.3rem;margin-bottom:0.6rem;">🏆</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Your top 10, ranked</div>
+          <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Not a random list — a curated ranking from best match to great option, just for you.</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #2a2530;padding-top:2rem;margin-bottom:0.5rem;">
+        <div style="font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:#c9a96e;margin-bottom:0.5rem;">Let's find your film</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
  
@@ -569,7 +602,7 @@ def step_results():
     all_movies = st.session_state.results + (st.session_state.extra_results or [])
  
     st.markdown('<div class="step-head">Your Top 10</div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-hint">Ranked by how well they match your preferences</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.85rem;color:#9e8f88;margin-bottom:1.5rem;font-weight:300;">Ranked by how well they match your preferences</div>', unsafe_allow_html=True)
  
     for i, m in enumerate(all_movies, 1):
         poster_url, _, overview, cast = get_tmdb_data(m["title"], m.get("year", ""))
@@ -593,11 +626,14 @@ def step_results():
             ) if streaming else '<span style="font-size:0.72rem;color:#3a3540;font-style:italic;">No streaming info</span>'
  
             rank_str = f"0{i}" if i < 10 else str(i)
+            trophy = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, "")
+            trophy_html = f'<span style="font-size:1.4rem;line-height:1;margin-left:6px;">{trophy}</span>' if trophy else ""
+ 
             st.markdown(f"""
             <div style="padding:4px 0 8px;">
               <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;">
                 <span class="movie-rank">{rank_str}</span>
-                <span class="movie-title">{m['title']}</span>
+                <span class="movie-title">{m['title']}</span>{trophy_html}
               </div>
               <div class="movie-meta">{m.get('year','')} &nbsp;·&nbsp; {m.get('runtime','')}</div>
               <div class="badge-row">{genre_badges}{mood_badges}</div>
@@ -655,3 +691,4 @@ elif step == 4: step4()
 elif step == 5: step5()
 elif step == 6: step6()
 elif step == 7: step_results()
+ 
