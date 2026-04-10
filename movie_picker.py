@@ -234,13 +234,13 @@ section[data-testid="stAppViewContainer"] > div:first-child,
 /* ── Step text ── */
 .step-head {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.6rem;
+    font-size: 2rem;
     font-weight: 400;
     color: #f0e8dc;
     margin-bottom: 0.25rem;
     letter-spacing: 0.02em;
 }
-.step-hint { font-size: 0.8rem; color: #5a5055; margin-bottom: 1.2rem; font-weight: 300; }
+.step-hint { font-size: 0.9rem; color: #7a6f6a; margin-bottom: 1.2rem; font-weight: 300; }
  
 /* ── Widgets ── */
 div[data-testid="stMultiSelect"] > div,
@@ -367,10 +367,10 @@ if st.session_state.step < 7:
 if st.session_state.step == 1:
     st.markdown("""
     <div style="margin-bottom:2rem;">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:#f0e8dc;text-align:center;margin-bottom:0.4rem;letter-spacing:0.02em;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:2.8rem;font-weight:300;color:#f0e8dc;text-align:center;margin-bottom:0.4rem;letter-spacing:0.02em;">
         Stop scrolling. Start watching.
       </div>
-      <div style="font-size:0.85rem;color:#5a5055;text-align:center;font-weight:300;margin-bottom:2rem;letter-spacing:0.04em;">
+      <div style="font-size:0.95rem;color:#9e8f88;text-align:center;font-weight:300;margin-bottom:2rem;letter-spacing:0.04em;">
         Tell us how you feel and we'll find the perfect film — every time.
       </div>
       <div style="border-top:1px solid #2a2530;padding-top:1.5rem;margin-bottom:0.5rem;">
@@ -687,18 +687,18 @@ if   step == 1:
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:2.5rem;">
       <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
         <div style="font-size:1.3rem;margin-bottom:0.6rem;">🏆</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Your top 10, ranked</div>
-        <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Not a random list — a curated ranking from best match to great option, just for you.</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Your top 10, ranked</div>
+        <div style="font-size:0.82rem;color:#7a6f6a;line-height:1.6;font-weight:300;">Not a random list — a curated ranking from best match to great option, just for you.</div>
       </div>
       <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
         <div style="font-size:1.3rem;margin-bottom:0.6rem;">📺</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Where to watch</div>
-        <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Every recommendation shows which streaming platforms carry it — and whether it's free.</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">Where to watch</div>
+        <div style="font-size:0.82rem;color:#7a6f6a;line-height:1.6;font-weight:300;">Every recommendation shows which streaming platforms carry it — and whether it's free.</div>
       </div>
       <div style="border:1px solid #2a2530;border-radius:8px;padding:1.2rem;background:rgba(22,19,28,0.6);">
         <div style="font-size:1.3rem;margin-bottom:0.6rem;">🎯</div>
-        <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">AI-powered picks</div>
-        <div style="font-size:0.78rem;color:#5a5055;line-height:1.6;font-weight:300;">Claude analyses your mood, taste, and energy to rank films made for this exact moment.</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:#f0e8dc;margin-bottom:0.35rem;">AI-powered picks</div>
+        <div style="font-size:0.82rem;color:#7a6f6a;line-height:1.6;font-weight:300;">Claude analyses your mood, taste, and energy to rank films made for this exact moment.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
