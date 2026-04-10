@@ -282,7 +282,7 @@ div[data-testid="stButton"] > button:hover { opacity: 0.78; }
     font-family: 'Cormorant Garamond', serif;
     font-size: 2.8rem;
     font-weight: 300;
-    color: #2a2530;
+    color: #c9a96e;
     line-height: 1;
     min-width: 42px;
     padding-top: 4px;
@@ -309,6 +309,20 @@ div[data-testid="stButton"] > button:hover { opacity: 0.78; }
     border-radius: 6px; border: 1px solid #2a2530;
     display: flex; align-items: center; justify-content: center;
     color: #3a3540; font-size: 2rem; min-height: 160px;
+}
+ 
+/* ── Expander dark override ── */
+div[data-testid="stExpander"] {
+    background: #16131c !important;
+    border: 1px solid #2a2530 !important;
+    border-radius: 6px !important;
+}
+div[data-testid="stExpander"] summary {
+    color: #e8e0d5 !important;
+}
+div[data-testid="stExpander"] p,
+div[data-testid="stExpander"] div {
+    color: #e8e0d5 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -694,4 +708,4 @@ elif step == 4: step4()
 elif step == 5: step5()
 elif step == 6: step6()
 elif step == 7: step_results()
-  
+ 
